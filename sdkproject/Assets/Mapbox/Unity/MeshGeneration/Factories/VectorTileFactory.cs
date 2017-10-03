@@ -6,6 +6,8 @@ namespace Mapbox.Unity.MeshGeneration.Factories
 	using Mapbox.Unity.MeshGeneration.Data;
 	using Mapbox.Unity.MeshGeneration.Interfaces;
 	using Mapbox.Map;
+	using System;
+	using System.Linq;
 
 	/// <summary>
 	/// Uses vector tile api to visualize vector data.
@@ -52,19 +54,30 @@ namespace Mapbox.Unity.MeshGeneration.Factories
 		{
 			_layerBuilder = new Dictionary<string, List<LayerVisualizerBase>>();
 			_cachedData.Clear();
-			foreach (LayerVisualizerBase factory in Visualizers)
+			foreach (LayerVisualizerBase visualizer in Visualizers)
 			{
-				if (factory == null)
+				visualizer.OnVisualizerStateChanged += (s) => { TestVisualizers(); };
+				if (visualizer == null)
 					continue;
 
-				if (_layerBuilder.ContainsKey(factory.Key))
+				if (_layerBuilder.ContainsKey(visualizer.Key))
 				{
-					_layerBuilder[factory.Key].Add(factory);
+					_layerBuilder[visualizer.Key].Add(visualizer);
 				}
 				else
 				{
-					_layerBuilder.Add(factory.Key, new List<LayerVisualizerBase>() { factory });
+					_layerBuilder.Add(visualizer.Key, new List<LayerVisualizerBase>() { visualizer });
 				}
+			}
+		}
+
+		private void TestVisualizers()
+		{
+			State = Visualizers.All(x => x.State == Unity.Map.ModuleState.Finished) ? Unity.Map.ModuleState.Finished : Unity.Map.ModuleState.Working;
+
+			if (State == Map.ModuleState.Finished)
+			{
+				CallEvent();
 			}
 		}
 
@@ -73,13 +86,11 @@ namespace Mapbox.Unity.MeshGeneration.Factories
 			var vectorTile = new VectorTile();
 			tile.AddTile(vectorTile);
 
-			Progress++;
 			vectorTile.Initialize(_fileSource, tile.CanonicalTileId, _mapId, () =>
 			{
 				if (vectorTile.HasError)
 				{
 					tile.VectorDataState = TilePropertyState.Error;
-					Progress--;
 					return;
 				}
 
@@ -144,7 +155,6 @@ namespace Mapbox.Unity.MeshGeneration.Factories
 			}
 
 			tile.VectorDataState = TilePropertyState.Loaded;
-			Progress--;
 
 			_cachedData.Remove(tile);
 		}

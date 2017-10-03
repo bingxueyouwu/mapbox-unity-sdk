@@ -9,6 +9,8 @@ namespace Mapbox.Unity.MeshGeneration.Interfaces
 	using Mapbox.Unity.MeshGeneration.Data;
 	using Mapbox.Unity.MeshGeneration.Modifiers;
 	using Mapbox.Unity.Utilities;
+	using System.Collections;
+	using Mapbox.Unity.Map;
 
 	[Serializable]
 	public class TypeVisualizerTuple
@@ -50,8 +52,9 @@ namespace Mapbox.Unity.MeshGeneration.Interfaces
 		[SerializeField]
 		[NodeEditorElementAttribute("Custom Stacks")]
 		public List<TypeVisualizerTuple> Stacks;
+
 		
-		private GameObject _container;
+		//private GameObject _container;
 
 		/// <summary>
 		/// Creates an object for each layer, extract and filter in/out the features and runs Build method on them.
@@ -60,15 +63,21 @@ namespace Mapbox.Unity.MeshGeneration.Interfaces
 		/// <param name="tile"></param>
 		public override void Create(VectorTileLayer layer, UnityTile tile)
 		{
-			_container = new GameObject(Key + " Container");
+			Progress++;
+			Runnable.Run(NewMethod(layer, tile));
+		}
+
+		private IEnumerator NewMethod(VectorTileLayer layer, UnityTile tile)
+		{
+			var _container = new GameObject(Key + " Container");
 			_container.transform.SetParent(tile.transform, false);
 
 			//testing each feature with filters
 			var fc = layer.FeatureCount();
-			var filterOut = false;
+			var counter = 1;
 			for (int i = 0; i < fc; i++)
 			{
-				filterOut = false;
+				var filterOut = false;
 				var feature = new VectorFeatureUnity(layer.GetFeature(i, 0), tile, layer.Extent);
 				foreach (var filter in Filters)
 				{
@@ -84,6 +93,11 @@ namespace Mapbox.Unity.MeshGeneration.Interfaces
 
 				if (!filterOut)
 					Build(feature, tile, _container);
+
+				if(counter % 100 == 0)
+					yield return null;
+
+				counter++;
 			}
 
 			var mergedStack = _defaultStack as MergedModifierStack;
@@ -100,6 +114,7 @@ namespace Mapbox.Unity.MeshGeneration.Interfaces
 					mergedStack.End(tile, _container);
 				}
 			}
+			Progress--;
 		}
 
 		/// <summary>

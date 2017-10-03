@@ -5,6 +5,8 @@ namespace Mapbox.Unity.MeshGeneration.Modifiers
     using System.Linq;
     using Mapbox.Unity.MeshGeneration.Data;
     using Mapbox.Unity.MeshGeneration.Components;
+	using System.Collections;
+	using CielaSpike;
 
 	public enum PositionTargetType
 	{
@@ -30,7 +32,14 @@ namespace Mapbox.Unity.MeshGeneration.Modifiers
 		public List<GameObjectModifier> GoModifiers;
 
         public override GameObject Execute(UnityTile tile, VectorFeatureUnity feature, MeshData meshData, GameObject parent = null, string type = "")
-        {
+		{
+			tile.StartCoroutineAsync(NewMethod(tile, feature, meshData, parent, type));
+			//NewMethod(tile, feature, meshData, parent, type);
+			return null;
+		}
+
+		private IEnumerator NewMethod(UnityTile tile, VectorFeatureUnity feature, MeshData meshData, GameObject parent, string type)
+		{
 			_center = Vector3.zero;
 			if (_moveFeaturePositionTo != PositionTargetType.TileCenter)
 			{
@@ -39,7 +48,7 @@ namespace Mapbox.Unity.MeshGeneration.Modifiers
 				{
 					f = feature.Points[0][0];
 				}
-				else if(_moveFeaturePositionTo == PositionTargetType.CenterOfVertices)
+				else if (_moveFeaturePositionTo == PositionTargetType.CenterOfVertices)
 				{
 					//this is not precisely the center because of the duplicates  (first/last vertex) but close to center
 					f = feature.Points[0][0];
@@ -65,26 +74,25 @@ namespace Mapbox.Unity.MeshGeneration.Modifiers
 				_center = f;
 			}
 
-            foreach (MeshModifier mod in MeshModifiers.Where(x => x != null && x.Active))
-            {
-                mod.Run(feature, meshData, tile);
-            }
+			foreach (MeshModifier mod in MeshModifiers.Where(x => x != null && x.Active))
+			{
+				mod.Run(feature, meshData, tile);
+			}
+			yield return Ninja.JumpToUnity;
 
-            var go = CreateGameObject(meshData, parent);
+			var go = CreateGameObject(meshData, parent);
 			go.transform.localPosition = _center;
-            go.name = type + " - " + feature.Data.Id;
-            var bd = go.AddComponent<FeatureBehaviour>();
-            bd.Init(feature);
+			go.name = type + " - " + feature.Data.Id;
+			var bd = go.AddComponent<FeatureBehaviour>();
+			bd.Init(feature);
 
-            foreach (GameObjectModifier mod in GoModifiers.Where(x => x.Active))
-            {
+			foreach (GameObjectModifier mod in GoModifiers.Where(x => x.Active))
+			{
 				mod.Run(bd, tile);
-            }
+			}
+		}
 
-            return go;
-        }
-
-        private GameObject CreateGameObject(MeshData data, GameObject main)
+		private GameObject CreateGameObject(MeshData data, GameObject main)
         {
             var go = new GameObject();
             var mesh = go.AddComponent<MeshFilter>().mesh;

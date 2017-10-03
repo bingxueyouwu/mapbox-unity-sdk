@@ -10,7 +10,7 @@
     {
 		protected IFileSource _fileSource;
         
-		public ModuleState State { get; private set; }
+		public ModuleState State { get; protected set; }
 
         private int _progress;
         protected int Progress
@@ -35,6 +35,10 @@
             }
         }
 
+		public void CallEvent()
+		{
+			OnFactoryStateChanged(this);
+		}
 		public event Action<AbstractTileFactory> OnFactoryStateChanged = delegate { };
 
         public void Initialize(IFileSource fileSource)
